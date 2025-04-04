@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 import joblib
 import matplotlib.pyplot as plt
-from config import MODEL_FILENAME
+from config import MODEL_FILENAME_TEMPLATE
 
 
 def carregar_dados(arquivo):
@@ -40,7 +40,7 @@ def carregar_dados(arquivo):
     return df
 
 
-def salvar_modelo(modelo, nome_arquivo=MODEL_FILENAME):
+def salvar_modelo(modelo, nome_arquivo=MODEL_FILENAME_TEMPLATE):
     """
     Salva o modelo treinado em disco.
     """
@@ -48,7 +48,7 @@ def salvar_modelo(modelo, nome_arquivo=MODEL_FILENAME):
     print(f"\nModelo salvo como '{nome_arquivo}'")
 
 
-def carregar_modelo(nome_arquivo=MODEL_FILENAME):
+def carregar_modelo(nome_arquivo=MODEL_FILENAME_TEMPLATE):
     """
     Carrega um modelo previamente salvo.
     """

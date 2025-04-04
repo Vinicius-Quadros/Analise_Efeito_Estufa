@@ -1,7 +1,7 @@
 # Arquivo de configurações
 RANDOM_STATE = 42
 TEST_SIZE = 0.2
-MODEL_FILENAME = 'modelo_xgboost_n2o.pkl'
+MODEL_FILENAME_TEMPLATE = 'modelo_xgboost_{}.pkl'
 DATA_FILENAME = 'br_seeg_emissoes_brasil.csv'
 TARGET_GAS = 'N2O (t)'  # Atualizado para o formato correto do seu arquivo
 TARGET_COLUMN = 'emissao'
@@ -18,6 +18,13 @@ POSSIBLE_N2O_NAMES = [
     'Óxido Nitroso',
     'Oxido Nitroso'
 ]
+
+# Lista de possíveis nomes de gases no dataset
+POSSIBLE_GAS_FORMATS = {
+    'N2O': ['N2O (t)', 'N2O(t)', 'N2O (i)', 'N2O(i)', 'Óxido Nitroso (N2O)', 'Oxido Nitroso (N2O)', 'N2O'],
+    'CH4': ['CH4 (t)', 'CH4(t)', 'CH4 (i)', 'CH4(i)', 'Metano (CH4)', 'CH4'],
+    'CO2': ['CO2 (t)', 'CO2(t)', 'CO2 (i)', 'CO2(i)', 'Dióxido de Carbono (CO2)', 'Dioxido de Carbono (CO2)', 'CO2']
+}
 
 # Parâmetros padrão para o XGBoost
 XGBOOST_PARAMS = {

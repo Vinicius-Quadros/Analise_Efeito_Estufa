@@ -213,19 +213,62 @@ def testar_salvamento_csv():
         print(f"Erro ao salvar arquivo de teste: {e}")
 
 
+# [Todo o conteúdo existente do main.py permanece aqui]
+
+# ... [funções existentes] ...
+
+def executar_analise_todos_gases():
+    """
+    Executa análise e previsão para todos os gases no dataset.
+    """
+    from multi_gas_analysis import identificar_gases_no_dataset, treinar_modelos_para_todos_gases, prever_para_todos_gases, analisar_gases
+    from config import DATA_FILENAME, TARGET_GAS
+    
+    print("\n" + "="*50)
+    print("INICIANDO ANÁLISE PARA TODOS OS GASES")
+    print("="*50)
+    
+    # Inicializa valores default para retorno
+    df_resultado = None
+    modelos = {}
+    metricas = {}
+    analise = {}
+    
+    try:
+        # Carrega os dados
+        df = carregar_dados(DATA_FILENAME)
+        
+        if df is None or df.empty:
+            print("ERRO: Falha ao carregar dados. Verifique o arquivo CSV.")
+            return df_resultado, modelos, metricas, analise
+        
+        # Identificar gases no dataset
+        gases_mapeados = identificar_gases_no_dataset(df)
+        
+        # Treinar modelos para todos os gases
+        modelos, metricas = treinar_modelos_para_todos_gases(df, gases_mapeados)
+        
+        # Realizar previsões para todos os gases
+        df_resultado = prever_para_todos_gases(df, modelos, gases_mapeados)
+        
+        # Realizar análise comparativa com foco no N2O
+        analise = analisar_gases(df_resultado, target_gas='N2O')
+        
+    except Exception as e:
+        import traceback
+        print(f"Erro durante a execução da análise: {e}")
+        traceback.print_exc()
+    
+    print("\nProcesso completo de análise multi-gás finalizado.")
+    
+    return df_resultado, modelos, metricas, analise
+
+# Modifique apenas esta parte no final do arquivo
 if __name__ == "__main__":
-    # Escolha qual análise executar descomentando uma das linhas abaixo
+    # Você pode descomentar a linha que preferir executar
     
-    # Análise básica (mais rápida)
-    modelo, resultados = executar_analise_basica()
+    # Para executar apenas a análise básica (original):
+    # modelo, resultados = executar_analise_basica()
     
-    # Análise com otimização de hiperparâmetros (mais lenta)
-    # modelo, resultados = executar_analise_com_otimizacao()
-    
-    # Análise com comparação com baseline
-    # modelo, resultados, melhoria = executar_analise_com_comparacao()
-    
-    # Análise completa (mais lenta, mais completa)
-    # modelo, resultados, melhoria = executar_analise_completa()
-    
-    print("\nAnalise concluída com sucesso!")
+    # Para executar a análise completa com todos os gases:
+    resultado, modelos, metricas, analise = executar_analise_todos_gases()

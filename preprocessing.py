@@ -171,3 +171,51 @@ def criar_preprocessador(colunas_numericas, colunas_categoricas):
     )
     
     return preprocessor
+
+# Adicione esta função no arquivo preprocessing.py
+
+def filtrar_gas(df, gas_nome):
+    """
+    Filtra o dataframe para conter apenas dados do gás especificado.
+    """
+    from config import POSSIBLE_GAS_FORMATS
+    
+    # Verificar formatos possíveis para este gás
+    formatos_possiveis = []
+    for nome, formatos in POSSIBLE_GAS_FORMATS.items():
+        if nome == gas_nome:
+            formatos_possiveis = formatos
+            break
+    
+    if not formatos_possiveis:
+        formatos_possiveis = [gas_nome]  # Usar o nome literal se não houver formatos definidos
+    
+    # Verificar valores únicos na coluna gás
+    valores_unicos = df['gas'].unique()
+    
+    # Tentar encontrar algum formato que exista no dataframe
+    formato_encontrado = None
+    for formato in formatos_possiveis:
+        if formato in valores_unicos:
+            formato_encontrado = formato
+            break
+    
+    if formato_encontrado is None:
+        # Tentar correspondência parcial
+        for valor in valores_unicos:
+            for formato in formatos_possiveis:
+                if formato in valor:
+                    formato_encontrado = valor
+                    break
+            if formato_encontrado:
+                break
+    
+    if formato_encontrado is None:
+        print(f"ERRO: Não foi possível encontrar o gás {gas_nome} nos dados.")
+        return df.head(0)  # Retorna DataFrame vazio
+    
+    # Filtrar para o formato encontrado
+    df_gas = df[df['gas'] == formato_encontrado].copy()
+    print(f"Dataset filtrado para '{formato_encontrado}': {df_gas.shape[0]} linhas")
+    
+    return df_gas
