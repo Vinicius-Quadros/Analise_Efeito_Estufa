@@ -272,3 +272,5 @@ if __name__ == "__main__":
     
     # Para executar a análise completa com todos os gases:
     resultado, modelos, metricas, analise = executar_analise_todos_gases()
+
+    # modelo, resultados, melhoria = executar_analise_com_comparacao()

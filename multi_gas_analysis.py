@@ -5,8 +5,9 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from preprocessing import filtrar_gas, preprocessamento
 from model import criar_pipeline, treinar_e_avaliar, prever_em_novos_dados
-from utils import salvar_modelo, carregar_modelo
+from utils import criar_baseline, salvar_modelo, carregar_modelo
 from config import POSSIBLE_GAS_FORMATS, MODEL_FILENAME_TEMPLATE, TARGET_COLUMN
+from visualization import comparar_com_baseline
 
 def identificar_gases_no_dataset(df):
     """
@@ -67,6 +68,11 @@ def treinar_modelos_para_todos_gases(df, gases_mapeados, min_samples=1000):
         if modelo is None:
             print(f"Falha ao treinar modelo para {gas_original}. Pulando...")
             continue
+
+        # Adicionar esta parte para gerar a comparação com baseline
+        mse_baseline, _ = criar_baseline(X_train, X_test, y_train, y_test)
+        melhoria = comparar_com_baseline(mse, mse_baseline)
+        print(f"Gráfico de comparação com baseline salvo como 'comparacao_baseline.png' para {gas_padronizado}")
         
         # Salvar modelo
         nome_arquivo = MODEL_FILENAME_TEMPLATE.format(gas_padronizado)
