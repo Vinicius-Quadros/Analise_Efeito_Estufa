@@ -3,11 +3,15 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
+import os
 
 def analisar_importancia_features(modelo, X_train):
     """
     Analisa a importância das features usadas no modelo.
     """
+    # Criar pasta para gráficos
+    os.makedirs('graficos', exist_ok=True)
+    
     # Obtendo o modelo XGBoost do pipeline
     model_xgb = modelo.named_steps['model']
     
@@ -28,7 +32,11 @@ def analisar_importancia_features(modelo, X_train):
     sns.barplot(x='Importância', y='Feature', data=df_importancia.head(15))
     plt.title('15 Features Mais Importantes')
     plt.tight_layout()
-    plt.savefig('importancia_features.png')
+    
+    # Salvar na pasta 'graficos'
+    caminho_grafico = os.path.join('graficos', 'importancia_features.png')
+    plt.savefig(caminho_grafico)
+    print(f"Gráfico de importância de features salvo em '{caminho_grafico}'")
     
     print("\n15 Features mais importantes:")
     print(df_importancia.head(15))
@@ -39,6 +47,9 @@ def comparar_com_baseline(mse_modelo, mse_baseline):
     """
     Compara o desempenho do modelo com o baseline.
     """
+    # Criar pasta para gráficos
+    os.makedirs('graficos', exist_ok=True)
+    
     melhoria_percentual = ((mse_baseline - mse_modelo) / mse_baseline) * 100
     
     print("\nComparação com baseline:")
@@ -53,6 +64,10 @@ def comparar_com_baseline(mse_modelo, mse_baseline):
     barras[1].set_color('green')
     plt.ylabel('MSE (Erro Quadrático Médio)')
     plt.title('Comparação de Erro: Baseline vs XGBoost')
-    plt.savefig('comparacao_baseline.png')
+    
+    # Salvar na pasta 'graficos'
+    caminho_grafico = os.path.join('graficos', 'comparacao_baseline.png')
+    plt.savefig(caminho_grafico)
+    print(f"Gráfico de comparação com baseline salvo em '{caminho_grafico}'")
     
     return melhoria_percentual

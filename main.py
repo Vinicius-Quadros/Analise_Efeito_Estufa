@@ -263,12 +263,27 @@ def executar_analise_todos_gases():
     
     return df_resultado, modelos, metricas, analise
 
-# Modifique apenas esta parte no final do arquivo
+def inicializar_diretorios():
+    """
+    Cria as pastas necessárias para armazenar os resultados.
+    """
+    import os
+    
+    # Criar pastas
+    os.makedirs('modelos', exist_ok=True)
+    os.makedirs('graficos', exist_ok=True)
+    
+    print("Diretorios criados: 'modelos' e 'graficos'")
+
+# Adicionar chamada para inicializar_diretorios() no início da execução
 if __name__ == "__main__":
+    # Criar pastas necessárias
+    inicializar_diretorios()
+    
     # Você pode descomentar a linha que preferir executar
     
     # Para executar apenas a análise básica (original):
-    # modelo, resultados = executar_analise_basica()
+    #modelo, resultados = executar_analise_basica()
     
     # Para executar a análise completa com todos os gases:
     resultado, modelos, metricas, analise = executar_analise_todos_gases()

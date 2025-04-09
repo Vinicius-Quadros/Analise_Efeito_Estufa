@@ -102,6 +102,25 @@ def analise_exploratoria(df):
     except Exception as e:
         print(f"Erro ao gerar histograma: {e}")
     
+     # Criar pasta para gráficos
+    import os
+    os.makedirs('graficos', exist_ok=True)
+    
+    # Verificar distribuição da variável alvo
+    plt.figure(figsize=(10, 6))
+    try:
+        plt.hist(df_n2o[TARGET_COLUMN], bins=30)
+        plt.title(f'Distribuição dos valores de {TARGET_COLUMN} para N2O')
+        plt.xlabel(f'Valor de {TARGET_COLUMN}')
+        plt.ylabel('Frequência')
+        
+        # Salvar na pasta 'graficos'
+        caminho_grafico = os.path.join('graficos', 'distribuicao_emissao_n2o.png')
+        plt.savefig(caminho_grafico)
+        print(f"Gráfico de distribuição salvo em '{caminho_grafico}'")
+    except Exception as e:
+        print(f"Erro ao gerar histograma: {e}")
+    
     return df_n2o
 
 def preprocessamento(df_n2o):

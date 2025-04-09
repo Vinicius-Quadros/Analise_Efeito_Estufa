@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import joblib
 import matplotlib.pyplot as plt
+import os
 from config import MODEL_FILENAME_TEMPLATE
 
 
@@ -42,18 +43,40 @@ def carregar_dados(arquivo):
 
 def salvar_modelo(modelo, nome_arquivo=MODEL_FILENAME_TEMPLATE):
     """
-    Salva o modelo treinado em disco.
+    Salva o modelo treinado em disco na pasta 'modelos'.
     """
-    joblib.dump(modelo, nome_arquivo)
-    print(f"\nModelo salvo como '{nome_arquivo}'")
+    # Criar pasta 'modelos' se não existir
+    os.makedirs('modelos', exist_ok=True)
+    
+    # Garantir que o nome do arquivo está formatado corretamente
+    if isinstance(nome_arquivo, str) and '{}' in nome_arquivo:
+        nome_arquivo = nome_arquivo.format('default')
+    
+    # Adicionar caminho para a pasta 'modelos'
+    caminho_completo = os.path.join('modelos', os.path.basename(nome_arquivo))
+    
+    joblib.dump(modelo, caminho_completo)
+    print(f"\nModelo salvo como '{caminho_completo}'")
 
 
 def carregar_modelo(nome_arquivo=MODEL_FILENAME_TEMPLATE):
     """
     Carrega um modelo previamente salvo.
     """
-    modelo = joblib.load(nome_arquivo)
-    print(f"\nModelo carregado de '{nome_arquivo}'")
+    # Garantir que o nome do arquivo está formatado corretamente
+    if isinstance(nome_arquivo, str) and '{}' in nome_arquivo:
+        nome_arquivo = nome_arquivo.format('default')
+    
+    # Verificar se o arquivo está na pasta 'modelos'
+    caminho_modelos = os.path.join('modelos', os.path.basename(nome_arquivo))
+    
+    if os.path.exists(caminho_modelos):
+        modelo = joblib.load(caminho_modelos)
+        print(f"\nModelo carregado de '{caminho_modelos}'")
+    else:
+        modelo = joblib.load(nome_arquivo)
+        print(f"\nModelo carregado de '{nome_arquivo}'")
+    
     return modelo
 
 

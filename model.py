@@ -24,10 +24,15 @@ def criar_pipeline(colunas_numericas, colunas_categoricas):
     
     return pipeline
 
+# Modificar apenas a função treinar_e_avaliar em model.py
 def treinar_e_avaliar(pipeline, X_train, X_test, y_train, y_test):
     """
     Treina o modelo e avalia o desempenho.
     """
+    # Criar pasta para gráficos
+    import os
+    os.makedirs('graficos', exist_ok=True)
+    
     # Treinamento
     print("Treinando o modelo XGBoost...")
     
@@ -52,7 +57,11 @@ def treinar_e_avaliar(pipeline, X_train, X_test, y_train, y_test):
         plt.xlabel('Valores Reais')
         plt.ylabel('Previsões')
         plt.title('Previsões vs Valores Reais')
-        plt.savefig('previsoes_vs_reais.png')
+        
+        # Salvar na pasta 'graficos'
+        caminho_grafico = os.path.join('graficos', 'previsoes_vs_reais.png')
+        plt.savefig(caminho_grafico)
+        print(f"Gráfico salvo em '{caminho_grafico}'")
         
         return pipeline, y_pred, mse, rmse
     except Exception as e:
