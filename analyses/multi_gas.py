@@ -1,43 +1,37 @@
-# Funções para análise de múltiplos gases
+"""
+Módulo para análise de múltiplos gases.
+
+Este módulo contém funções para treinar modelos para diferentes gases,
+realizar previsões e comparar os resultados entre diferentes gases.
+"""
+
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-from preprocessing import filtrar_gas, preprocessamento
-from model import criar_pipeline, treinar_e_avaliar, prever_em_novos_dados
-from utils import criar_baseline, salvar_modelo, carregar_modelo
-from config import POSSIBLE_GAS_FORMATS, MODEL_FILENAME_TEMPLATE, TARGET_COLUMN
-from visualization import comparar_com_baseline
+from typing import Dict, Tuple, List, Optional, Any, Union
 
-def identificar_gases_no_dataset(df):
-    """
-    Identifica todos os tipos de gases presentes no dataset.
-    """
-    gases_unicos = df['gas'].unique()
-    print(f"Gases encontrados no dataset ({len(gases_unicos)} tipos):")
-    for gas in gases_unicos:
-        print(f"  - {gas}")
-    
-    # Mapear para nomes padronizados
-    gases_mapeados = []
-    for gas in gases_unicos:
-        gas_padronizado = None
-        for nome_padrao, formatos in POSSIBLE_GAS_FORMATS.items():
-            if any(formato in gas for formato in formatos):
-                gas_padronizado = nome_padrao
-                break
-        
-        if gas_padronizado:
-            gases_mapeados.append((gas, gas_padronizado))
-        else:
-            gases_mapeados.append((gas, gas))
-    
-    return gases_mapeados
+from config import MODEL_FILENAME_TEMPLATE, TARGET_COLUMN, POSSIBLE_GAS_FORMATS
+from core.data import identificar_gases_no_dataset, filtrar_por_gas, converter_para_numerico
+from core.preprocessing import preprocessar_dados_completo
+from core.model import criar_pipeline_xgboost, treinar_e_avaliar_modelo, realizar_previsoes
+from utils.io import save_model, save_dataframe, ensure_directory_exists
+from utils.visualization import plot_feature_importance, plot_model_comparison, plot_predictions_vs_actual
 
-def treinar_modelos_para_todos_gases(df, gases_mapeados, min_samples=1000):
+
+def treinar_modelos_para_todos_gases(df: pd.DataFrame, 
+                                    gases_mapeados: List[Tuple[str, str]],
+                                    min_samples: int = 1000) -> Tuple[Dict, Dict]:
     """
     Treina modelos separados para cada tipo de gás no dataset.
-    Retorna um dicionário com os modelos treinados.
+    
+    Args:
+        df: DataFrame com os dados
+        gases_mapeados: Lista de tuplas (nome_original, nome_padronizado)
+        min_samples: Número mínimo de amostras para treinar um modelo
+        
+    Returns:
+        Tupla com (modelos, metricas)
     """
     modelos = {}
     metricas = {}
@@ -55,38 +49,66 @@ def treinar_modelos_para_todos_gases(df, gases_mapeados, min_samples=1000):
             continue
         
         # Preprocessamento
-        X_train, X_test, y_train, y_test, colunas_numericas, colunas_categoricas = preprocessamento(df_gas)
+        resultado = preprocessar_dados_completo(df_gas, TARGET_COLUMN)
         
-        if X_train is None:
+        if resultado[0] is None:
             print(f"Erro no preprocessamento para {gas_original}. Pulando...")
             continue
+            
+        X_train, X_test, y_train, y_test, colunas_numericas, colunas_categoricas = resultado
         
-        # Criar e treinar modelo
-        pipeline = criar_pipeline(colunas_numericas, colunas_categoricas)
-        modelo, y_pred, mse, rmse = treinar_e_avaliar(pipeline, X_train, X_test, y_train, y_test)
+        # Criar pipeline
+        pipeline = criar_pipeline_xgboost(colunas_numericas, colunas_categoricas)
         
-        if modelo is None:
+        # Treinar e avaliar
+        resultado_treino = treinar_e_avaliar_modelo(pipeline, X_train, X_test, y_train, y_test)
+        
+        if resultado_treino[0] is None:
             print(f"Falha ao treinar modelo para {gas_original}. Pulando...")
             continue
-
-        # Adicionar esta parte para gerar a comparação com baseline
-        mse_baseline, _ = criar_baseline(X_train, X_test, y_train, y_test)
-        melhoria = comparar_com_baseline(mse, mse_baseline)
-        print(f"Gráfico de comparação com baseline salvo como 'comparacao_baseline.png' para {gas_padronizado}")
+            
+        modelo, y_pred, mse, rmse, r2 = resultado_treino
+        
+        # Visualização das previsões
+        try:
+            plot_predictions_vs_actual(
+                y_test, 
+                y_pred,
+                title=f'Previsões vs Valores Reais - {gas_padronizado}',
+                filename=f'previsoes_vs_reais_{gas_padronizado}.png'
+            )
+        except Exception as e:
+            print(f"Erro ao criar gráfico de previsões: {e}")
         
         # Salvar modelo
         nome_arquivo = MODEL_FILENAME_TEMPLATE.format(gas_padronizado)
-        salvar_modelo(modelo, nome_arquivo)
+        save_model(modelo, nome_arquivo)
         
         # Armazenar modelo e métricas
         modelos[gas_padronizado] = modelo
-        metricas[gas_padronizado] = {'mse': mse, 'rmse': rmse, 'samples': len(df_gas)}
+        metricas[gas_padronizado] = {
+            'mse': mse, 
+            'rmse': rmse, 
+            'r2': r2, 
+            'samples': len(df_gas)
+        }
     
     return modelos, metricas
 
-def prever_para_todos_gases(df, modelos, gases_mapeados):
+
+def prever_para_todos_gases(df: pd.DataFrame, 
+                           modelos: Dict, 
+                           gases_mapeados: List[Tuple[str, str]]) -> pd.DataFrame:
     """
     Realiza previsões para todos os gases usando os modelos treinados.
+    
+    Args:
+        df: DataFrame com os dados
+        modelos: Dicionário com modelos treinados por gás
+        gases_mapeados: Lista de tuplas (nome_original, nome_padronizado)
+        
+    Returns:
+        DataFrame com previsões para todos os gases
     """
     df_resultado = df.copy()
     df_resultado['emissao_prevista'] = None
@@ -127,14 +149,22 @@ def prever_para_todos_gases(df, modelos, gases_mapeados):
         )
     
     # Salvar resultado
-    df_resultado.to_csv('resultado_todos_gases.csv', index=False)
-    print("\nResultados salvos em 'resultado_todos_gases.csv'")
+    save_dataframe(df_resultado, 'resultado_todos_gases.csv', 'resultados')
+    print("\nResultados salvos em 'resultados/resultado_todos_gases.csv'")
     
     return df_resultado
 
-def analisar_gases(df, target_gas='N2O'):
+
+def analisar_gases(df: pd.DataFrame, target_gas: str = 'N2O') -> Dict:
     """
     Realiza análise comparativa entre diferentes gases, com foco no gás alvo.
+    
+    Args:
+        df: DataFrame com os dados e previsões
+        target_gas: Gás alvo para análise detalhada
+        
+    Returns:
+        Dicionário com resumo das análises
     """
     print(f"\n{'='*50}")
     print(f"ANÁLISE COMPARATIVA DE GASES (FOCO EM {target_gas})")
@@ -143,7 +173,7 @@ def analisar_gases(df, target_gas='N2O'):
     # Verificar se temos a coluna de previsões
     if 'emissao_prevista' not in df.columns:
         print("ERRO: Não há previsões no DataFrame. Execute a previsão primeiro.")
-        return
+        return {'erro': 'Sem previsões no DataFrame'}
     
     # Converter colunas para numérico
     df_analise = df.copy()
@@ -151,15 +181,6 @@ def analisar_gases(df, target_gas='N2O'):
     # Verificar tipos de dados
     print(f"Tipo de dados da coluna '{TARGET_COLUMN}': {df_analise[TARGET_COLUMN].dtype}")
     print(f"Tipo de dados da coluna 'emissao_prevista': {df_analise['emissao_prevista'].dtype}")
-    
-    # Função segura para converter para numérico
-    def converter_para_numerico(serie):
-        if serie.dtype == 'object':
-            # Para strings, tenta substituir vírgula por ponto primeiro
-            return pd.to_numeric(serie.astype(str).str.replace(',', '.'), errors='coerce')
-        else:
-            # Para outros tipos, tenta converter diretamente
-            return pd.to_numeric(serie, errors='coerce')
     
     # Aplicar conversão de forma segura
     df_analise[TARGET_COLUMN] = converter_para_numerico(df_analise[TARGET_COLUMN])
@@ -179,11 +200,10 @@ def analisar_gases(df, target_gas='N2O'):
     
     if not gas_alvo_original:
         print(f"ERRO: Gás alvo {target_gas} não encontrado no dataset.")
-        return
+        return {'erro': f'Gás {target_gas} não encontrado'}
     
     # Criar pasta para gráficos
-    import os
-    os.makedirs('graficos', exist_ok=True)
+    ensure_directory_exists('graficos')
     
     # Análise 1: Distribuição de emissões por tipo de gás
     plt.figure(figsize=(14, 8))
@@ -192,6 +212,7 @@ def analisar_gases(df, target_gas='N2O'):
     plt.xticks(rotation=90)
     plt.tight_layout()
     plt.savefig('graficos/distribuicao_emissoes_por_gas.png')
+    plt.close()
     
     # Análise 2: Comparação entre valores reais e previstos para o gás alvo
     df_alvo = df_analise[df_analise['gas'] == gas_alvo_original]
@@ -206,6 +227,7 @@ def analisar_gases(df, target_gas='N2O'):
         plt.ylabel('Emissão Prevista')
         plt.title(f'Comparação entre Valores Reais e Previstos para {target_gas}')
         plt.savefig(f'graficos/comparacao_real_previsto_{target_gas}.png')
+        plt.close()
     else:
         print(f"AVISO: Não há dados para o gás alvo {target_gas} após a conversão.")
     
@@ -220,6 +242,7 @@ def analisar_gases(df, target_gas='N2O'):
         plt.xticks(rotation=90)
         plt.tight_layout()
         plt.savefig(f'graficos/erro_por_setor_{target_gas}.png')
+        plt.close()
     
     # Análise 4: Comparação da contribuição de cada gás para emissões totais
     emissoes_por_gas = df_analise.groupby('gas')[TARGET_COLUMN].sum()
@@ -230,6 +253,7 @@ def analisar_gases(df, target_gas='N2O'):
     plt.ylabel('Soma das Emissões')
     plt.tight_layout()
     plt.savefig('graficos/contribuicao_total_por_gas.png')
+    plt.close()
     
     # Análise 5: Evolução temporal das emissões do gás alvo (se houver coluna 'ano')
     if 'ano' in df_alvo.columns:
@@ -245,6 +269,7 @@ def analisar_gases(df, target_gas='N2O'):
         plt.legend()
         plt.grid(True)
         plt.savefig(f'graficos/evolucao_temporal_{target_gas}.png')
+        plt.close()
     
     # Análise 6: Correlação entre diferentes variáveis para o gás alvo
     colunas_numericas = df_alvo.select_dtypes(include=['number']).columns
@@ -256,30 +281,25 @@ def analisar_gases(df, target_gas='N2O'):
         plt.title(f'Matriz de Correlação para {target_gas}')
         plt.tight_layout()
         plt.savefig(f'graficos/matriz_correlacao_{target_gas}.png')
+        plt.close()
     
     print(f"Análise concluída! Gráficos salvos na pasta 'graficos/'")
     
-    # Retornar resumo das análises
-    resumo = {
-        'total_gases': len(df_analise['gas'].unique()),
-        'total_emissoes_alvo': df_alvo[TARGET_COLUMN].sum(),
-        'media_emissoes_alvo': df_alvo[TARGET_COLUMN].mean(),
-        'erro_medio_alvo': abs(df_alvo[TARGET_COLUMN] - df_alvo['emissao_prevista']).mean(),
-        'percentual_erro': abs(df_alvo[TARGET_COLUMN] - df_alvo['emissao_prevista']).sum() / df_alvo[TARGET_COLUMN].sum() * 100
-    }
-    
-    print("\nRESUMO DA ANÁLISE:")
-    for key, value in resumo.items():
-        print(f"  - {key}: {value}")
-    
+    # Calcular métricas para resumo
     try:
+        # Evitar divisão por zero
+        if len(df_alvo) > 0 and df_alvo[TARGET_COLUMN].sum() != 0:
+            percentual_erro = abs(df_alvo[TARGET_COLUMN] - df_alvo['emissao_prevista']).sum() / df_alvo[TARGET_COLUMN].sum() * 100
+        else:
+            percentual_erro = 0
+        
         # Retornar resumo das análises
         resumo = {
             'total_gases': len(df_analise['gas'].unique()),
             'total_emissoes_alvo': df_alvo[TARGET_COLUMN].sum() if len(df_alvo) > 0 else 0,
             'media_emissoes_alvo': df_alvo[TARGET_COLUMN].mean() if len(df_alvo) > 0 else 0,
             'erro_medio_alvo': abs(df_alvo[TARGET_COLUMN] - df_alvo['emissao_prevista']).mean() if len(df_alvo) > 0 else 0,
-            'percentual_erro': abs(df_alvo[TARGET_COLUMN] - df_alvo['emissao_prevista']).sum() / df_alvo[TARGET_COLUMN].sum() * 100 if len(df_alvo) > 0 and df_alvo[TARGET_COLUMN].sum() != 0 else 0
+            'percentual_erro': percentual_erro
         }
         
         print("\nRESUMO DA ANÁLISE:")
@@ -289,5 +309,4 @@ def analisar_gases(df, target_gas='N2O'):
         return resumo
     except Exception as e:
         print(f"Erro ao gerar resumo da análise: {e}")
-        # Retorna um resumo vazio em caso de erro
-        return {'erro': str(e)} 
+        return {'erro': str(e)}
